@@ -1,6 +1,6 @@
 import { detectDynamicWavelet } from "./dynamicWavelet";
 import { Subject } from "rxjs";
-import { map, auditTime, filter, startWith } from "rxjs/operators";
+import { map, auditTime, filter, tap, startWith } from "rxjs/operators";
 import { MapOperator } from "rxjs/internal/operators/map";
 
 const audioBuffer$ = new Subject<Float32Array>();
@@ -155,10 +155,10 @@ function handleSuccess(stream: MediaStream) {
 
 const freq$ = audioBuffer$.pipe(
 	map(buff => detectDynamicWavelet(buff)),
-	auditTime(500),
 	map(x => (x == null ? 0 : x)),
-	map(findClosestPitch),
-	startWith("Say something")
+	filter(x => x > 100),
+	auditTime(500),
+	map(findClosestPitch)
 );
 
 freq$.subscribe(value => (pitchDisplay.textContent = value));

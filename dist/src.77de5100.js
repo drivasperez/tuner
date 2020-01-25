@@ -15538,9 +15538,11 @@ function handleSuccess(stream) {
 
 var freq$ = audioBuffer$.pipe(operators_1.map(function (buff) {
   return dynamicWavelet_1.detectDynamicWavelet(buff);
-}), operators_1.auditTime(500), operators_1.map(function (x) {
+}), operators_1.map(function (x) {
   return x == null ? 0 : x;
-}), operators_1.map(findClosestPitch), operators_1.startWith("Say something"));
+}), operators_1.filter(function (x) {
+  return x > 100;
+}), operators_1.auditTime(500), operators_1.map(findClosestPitch));
 freq$.subscribe(function (value) {
   return pitchDisplay.textContent = value;
 });
@@ -15576,7 +15578,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "60063" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "60926" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
