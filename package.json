@@ -1,0 +1,11 @@
+{
+  "name": "tuner",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Daniel Rivas Perez",
+  "license": "MIT",
+  "dependencies": {
+    "rxjs": "6.5.4",
+    "typescript": "3.7.5"
+  }
+}
