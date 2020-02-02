@@ -1,5 +1,4 @@
-import { detectDynamicWavelet } from "./dynamicWavelet";
-import { Subject, animationFrameScheduler } from "rxjs";
+import { Subject, animationFrameScheduler, from } from "rxjs";
 import {
   map,
   tap,
@@ -7,12 +6,19 @@ import {
   throttleTime,
   bufferCount,
   startWith,
+  mergeMap,
 } from "rxjs/operators";
 import { findClosestPitch } from "./freqsToPitch";
 import Meter from "./Meter.svelte";
 import { freq, lastHundredFreqs } from "./stores";
+import * as Comlink from "comlink";
 
 const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+
+const worker = new Worker("./dynamicWavelet.ts");
+const obj = Comlink.wrap<{
+  detectDynamicWavelet(buff: Float32Array): number | null;
+}>(worker);
 
 const FRAME = 1000 / 60;
 
@@ -35,8 +41,9 @@ function handleSuccess(stream: MediaStream) {
 }
 
 const freq$ = audioBuffer$.pipe(
-  map(buff => detectDynamicWavelet(buff)),
-  map(x => (x == null ? 0 : x)),
+  mergeMap(buff =>
+    from(obj.detectDynamicWavelet(buff)).pipe(map(x => (x == null ? 0 : x)))
+  ),
   throttleTime(0, animationFrameScheduler)
 );
 

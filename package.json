@@ -12,6 +12,7 @@
     "build": "parcel build src/index.html"
   },
   "dependencies": {
+    "comlink": "4.2.0",
     "d3": "5.15.0",
     "rxjs": "6.5.4",
     "svelte": "3.18.1",
