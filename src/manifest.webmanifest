@@ -1,0 +1,9 @@
+{
+  "short_name": "Tuner",
+  "name": "Tuner Thing",
+  "start_url": "/",
+  "background_color": "#fddd31",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#fddd31"
+}

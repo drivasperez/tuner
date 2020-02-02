@@ -16,6 +16,13 @@ import * as Comlink from "comlink";
 
 const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
 
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker
+    .register("/sw.js")
+    .then(() => console.log("Registered service worker"))
+    .catch(() => console.log("Whoops..."));
+}
+
 const worker = new Worker("./dynamicWavelet.ts");
 const obj = Comlink.wrap<{
   detectDynamicWavelet(buff: Float32Array): number | null;
