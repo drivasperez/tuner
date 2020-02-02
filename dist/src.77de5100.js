@@ -117,197 +117,7 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   }
 
   return newRequire;
-})({"dynamicWavelet.ts":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-var DEFAULT_SAMPLE_RATE = 44100;
-var MAX_FLWT_LEVELS = 6;
-var MAX_F = 3000;
-var DIFFERENCE_LEVELS_N = 3;
-var MAXIMA_THRESHOLD_RATIO = 0.75;
-
-function detectDynamicWavelet(float32AudioBuffer, config) {
-  "use strict";
-
-  if (config === void 0) {
-    config = {};
-  }
-
-  var sampleRate = config.sampleRate || DEFAULT_SAMPLE_RATE;
-  var mins = [];
-  var maxs = [];
-  var bufferLength = float32AudioBuffer.length;
-  var freq = null;
-  var theDC = 0;
-  var minValue = 0;
-  var maxValue = 0; // Compute max amplitude, amplitude threshold, and the DC.
-
-  for (var i = 0; i < bufferLength; i++) {
-    var sample = float32AudioBuffer[i];
-    theDC = theDC + sample;
-    maxValue = Math.max(maxValue, sample);
-    minValue = Math.min(minValue, sample);
-  }
-
-  theDC /= bufferLength;
-  minValue -= theDC;
-  maxValue -= theDC;
-  var amplitudeMax = maxValue > -1 * minValue ? maxValue : -1 * minValue;
-  var amplitudeThreshold = amplitudeMax * MAXIMA_THRESHOLD_RATIO; // levels, start without downsampling...
-
-  var curLevel = 0;
-  var curModeDistance = -1;
-  var curSamNb = float32AudioBuffer.length;
-  var delta, nbMaxs, nbMins; // Search:
-
-  while (true) {
-    delta = ~~(sampleRate / (Math.pow(2, curLevel) * MAX_F));
-    if (curSamNb < 2) break;
-    var dv = void 0;
-    var previousDV = -1000;
-    var lastMinIndex = -1000000;
-    var lastMaxIndex = -1000000;
-    var findMax = false;
-    var findMin = false;
-    nbMins = 0;
-    nbMaxs = 0;
-
-    for (var i = 2; i < curSamNb; i++) {
-      var si = float32AudioBuffer[i] - theDC;
-      var si1 = float32AudioBuffer[i - 1] - theDC;
-      if (si1 <= 0 && si > 0) findMax = true;
-      if (si1 >= 0 && si < 0) findMin = true; // min or max ?
-
-      dv = si - si1;
-
-      if (previousDV > -1000) {
-        if (findMin && previousDV < 0 && dv >= 0) {
-          // minimum
-          if (Math.abs(si) >= amplitudeThreshold) {
-            if (i > lastMinIndex + delta) {
-              mins[nbMins++] = i;
-              lastMinIndex = i;
-              findMin = false;
-            }
-          }
-        }
-
-        if (findMax && previousDV > 0 && dv <= 0) {
-          // maximum
-          if (Math.abs(si) >= amplitudeThreshold) {
-            if (i > lastMaxIndex + delta) {
-              maxs[nbMaxs++] = i;
-              lastMaxIndex = i;
-              findMax = false;
-            }
-          }
-        }
-      }
-
-      previousDV = dv;
-    }
-
-    if (nbMins === 0 && nbMaxs === 0) {
-      // No best distance found!
-      break;
-    }
-
-    var d = void 0;
-    var distances = [];
-
-    for (var i = 0; i < curSamNb; i++) {
-      distances[i] = 0;
-    }
-
-    for (var i = 0; i < nbMins; i++) {
-      for (var j = 1; j < DIFFERENCE_LEVELS_N; j++) {
-        if (i + j < nbMins) {
-          d = Math.abs(mins[i] - mins[i + j]);
-          distances[d] += 1;
-        }
-      }
-    }
-
-    var bestDistance = -1;
-    var bestValue = -1;
-
-    for (var i = 0; i < curSamNb; i++) {
-      var summed = 0;
-
-      for (var j = -1 * delta; j <= delta; j++) {
-        if (i + j >= 0 && i + j < curSamNb) {
-          summed += distances[i + j];
-        }
-      }
-
-      if (summed === bestValue) {
-        if (i === 2 * bestDistance) {
-          bestDistance = i;
-        }
-      } else if (summed > bestValue) {
-        bestValue = summed;
-        bestDistance = i;
-      }
-    } // averaging
-
-
-    var distAvg = 0;
-    var nbDists = 0;
-
-    for (var j = -delta; j <= delta; j++) {
-      if (bestDistance + j >= 0 && bestDistance + j < bufferLength) {
-        var nbDist = distances[bestDistance + j];
-
-        if (nbDist > 0) {
-          nbDists += nbDist;
-          distAvg += (bestDistance + j) * nbDist;
-        }
-      }
-    } // This is our mode distance.
-
-
-    distAvg /= nbDists; // Continue the levels?
-
-    if (curModeDistance > -1) {
-      if (Math.abs(distAvg * 2 - curModeDistance) <= 2 * delta) {
-        // two consecutive similar mode distances : ok !
-        freq = sampleRate / (Math.pow(2, curLevel - 1) * curModeDistance);
-        break;
-      }
-    } // not similar, continue next level;
-
-
-    curModeDistance = distAvg;
-    curLevel++;
-
-    if (curLevel >= MAX_FLWT_LEVELS || curSamNb < 2) {
-      break;
-    } //do not modify original audio buffer, make a copy buffer, if
-    //downsampling is needed (only once).
-
-
-    var newFloat32AudioBuffer = float32AudioBuffer.subarray(0);
-
-    if (curSamNb === distances.length) {
-      newFloat32AudioBuffer = new Float32Array(curSamNb / 2);
-    }
-
-    for (var i = 0; i < curSamNb / 2; i++) {
-      newFloat32AudioBuffer[i] = (float32AudioBuffer[2 * i] + float32AudioBuffer[2 * i + 1]) / 2;
-    }
-
-    float32AudioBuffer = newFloat32AudioBuffer;
-    curSamNb /= 2;
-  }
-
-  return freq;
-}
-
-exports.detectDynamicWavelet = detectDynamicWavelet;
-},{}],"../node_modules/tslib/tslib.es6.js":[function(require,module,exports) {
+})({"../node_modules/tslib/tslib.es6.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -21642,7 +21452,394 @@ class Meter extends _internal.SvelteComponentDev {
 
 var _default = Meter;
 exports.default = _default;
-},{"svelte/internal":"../node_modules/svelte/internal/index.mjs","d3-shape":"../node_modules/d3-shape/src/index.js","./stores":"stores.js","_css_loader":"../node_modules/parcel-bundler/src/builtins/css-loader.js"}],"index.ts":[function(require,module,exports) {
+},{"svelte/internal":"../node_modules/svelte/internal/index.mjs","d3-shape":"../node_modules/d3-shape/src/index.js","./stores":"stores.js","_css_loader":"../node_modules/parcel-bundler/src/builtins/css-loader.js"}],"../node_modules/comlink/dist/esm/comlink.mjs":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.expose = expose;
+exports.proxy = proxy;
+exports.transfer = transfer;
+exports.windowEndpoint = windowEndpoint;
+exports.wrap = wrap;
+exports.transferHandlers = exports.releaseProxy = exports.proxyMarker = exports.createEndpoint = void 0;
+
+/**
+ * Copyright 2019 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+const proxyMarker = Symbol("Comlink.proxy");
+exports.proxyMarker = proxyMarker;
+const createEndpoint = Symbol("Comlink.endpoint");
+exports.createEndpoint = createEndpoint;
+const releaseProxy = Symbol("Comlink.releaseProxy");
+exports.releaseProxy = releaseProxy;
+const throwSet = new WeakSet();
+const transferHandlers = new Map([["proxy", {
+  canHandle: obj => obj && obj[proxyMarker],
+
+  serialize(obj) {
+    const {
+      port1,
+      port2
+    } = new MessageChannel();
+    expose(obj, port1);
+    return [port2, [port2]];
+  },
+
+  deserialize: port => {
+    port.start();
+    return wrap(port);
+  }
+}], ["throw", {
+  canHandle: obj => throwSet.has(obj),
+
+  serialize(obj) {
+    const isError = obj instanceof Error;
+    let serialized = obj;
+
+    if (isError) {
+      serialized = {
+        isError,
+        message: obj.message,
+        stack: obj.stack
+      };
+    }
+
+    return [serialized, []];
+  },
+
+  deserialize(obj) {
+    if (obj.isError) {
+      throw Object.assign(new Error(), obj);
+    }
+
+    throw obj;
+  }
+
+}]]);
+exports.transferHandlers = transferHandlers;
+
+function expose(obj, ep = self) {
+  ep.addEventListener("message", function callback(ev) {
+    if (!ev || !ev.data) {
+      return;
+    }
+
+    const {
+      id,
+      type,
+      path
+    } = Object.assign({
+      path: []
+    }, ev.data);
+    const argumentList = (ev.data.argumentList || []).map(fromWireValue);
+    let returnValue;
+
+    try {
+      const parent = path.slice(0, -1).reduce((obj, prop) => obj[prop], obj);
+      const rawValue = path.reduce((obj, prop) => obj[prop], obj);
+
+      switch (type) {
+        case 0
+        /* GET */
+        :
+          {
+            returnValue = rawValue;
+          }
+          break;
+
+        case 1
+        /* SET */
+        :
+          {
+            parent[path.slice(-1)[0]] = fromWireValue(ev.data.value);
+            returnValue = true;
+          }
+          break;
+
+        case 2
+        /* APPLY */
+        :
+          {
+            returnValue = rawValue.apply(parent, argumentList);
+          }
+          break;
+
+        case 3
+        /* CONSTRUCT */
+        :
+          {
+            const value = new rawValue(...argumentList);
+            returnValue = proxy(value);
+          }
+          break;
+
+        case 4
+        /* ENDPOINT */
+        :
+          {
+            const {
+              port1,
+              port2
+            } = new MessageChannel();
+            expose(obj, port2);
+            returnValue = transfer(port1, [port1]);
+          }
+          break;
+
+        case 5
+        /* RELEASE */
+        :
+          {
+            returnValue = undefined;
+          }
+          break;
+      }
+    } catch (e) {
+      returnValue = e;
+      throwSet.add(e);
+    }
+
+    Promise.resolve(returnValue).catch(e => {
+      throwSet.add(e);
+      return e;
+    }).then(returnValue => {
+      const [wireValue, transferables] = toWireValue(returnValue);
+      ep.postMessage(Object.assign(Object.assign({}, wireValue), {
+        id
+      }), transferables);
+
+      if (type === 5
+      /* RELEASE */
+      ) {
+          // detach and deactive after sending release response above.
+          ep.removeEventListener("message", callback);
+          closeEndPoint(ep);
+        }
+    });
+  });
+
+  if (ep.start) {
+    ep.start();
+  }
+}
+
+function isMessagePort(endpoint) {
+  return endpoint.constructor.name === "MessagePort";
+}
+
+function closeEndPoint(endpoint) {
+  if (isMessagePort(endpoint)) endpoint.close();
+}
+
+function wrap(ep, target) {
+  return createProxy(ep, [], target);
+}
+
+function throwIfProxyReleased(isReleased) {
+  if (isReleased) {
+    throw new Error("Proxy has been released and is not useable");
+  }
+}
+
+function createProxy(ep, path = [], target = function () {}) {
+  let isProxyReleased = false;
+  const proxy = new Proxy(target, {
+    get(_target, prop) {
+      throwIfProxyReleased(isProxyReleased);
+
+      if (prop === releaseProxy) {
+        return () => {
+          return requestResponseMessage(ep, {
+            type: 5
+            /* RELEASE */
+            ,
+            path: path.map(p => p.toString())
+          }).then(() => {
+            closeEndPoint(ep);
+            isProxyReleased = true;
+          });
+        };
+      }
+
+      if (prop === "then") {
+        if (path.length === 0) {
+          return {
+            then: () => proxy
+          };
+        }
+
+        const r = requestResponseMessage(ep, {
+          type: 0
+          /* GET */
+          ,
+          path: path.map(p => p.toString())
+        }).then(fromWireValue);
+        return r.then.bind(r);
+      }
+
+      return createProxy(ep, [...path, prop]);
+    },
+
+    set(_target, prop, rawValue) {
+      throwIfProxyReleased(isProxyReleased); // FIXME: ES6 Proxy Handler `set` methods are supposed to return a
+      // boolean. To show good will, we return true asynchronously ¯\_(ツ)_/¯
+
+      const [value, transferables] = toWireValue(rawValue);
+      return requestResponseMessage(ep, {
+        type: 1
+        /* SET */
+        ,
+        path: [...path, prop].map(p => p.toString()),
+        value
+      }, transferables).then(fromWireValue);
+    },
+
+    apply(_target, _thisArg, rawArgumentList) {
+      throwIfProxyReleased(isProxyReleased);
+      const last = path[path.length - 1];
+
+      if (last === createEndpoint) {
+        return requestResponseMessage(ep, {
+          type: 4
+          /* ENDPOINT */
+
+        }).then(fromWireValue);
+      } // We just pretend that `bind()` didn’t happen.
+
+
+      if (last === "bind") {
+        return createProxy(ep, path.slice(0, -1));
+      }
+
+      const [argumentList, transferables] = processArguments(rawArgumentList);
+      return requestResponseMessage(ep, {
+        type: 2
+        /* APPLY */
+        ,
+        path: path.map(p => p.toString()),
+        argumentList
+      }, transferables).then(fromWireValue);
+    },
+
+    construct(_target, rawArgumentList) {
+      throwIfProxyReleased(isProxyReleased);
+      const [argumentList, transferables] = processArguments(rawArgumentList);
+      return requestResponseMessage(ep, {
+        type: 3
+        /* CONSTRUCT */
+        ,
+        path: path.map(p => p.toString()),
+        argumentList
+      }, transferables).then(fromWireValue);
+    }
+
+  });
+  return proxy;
+}
+
+function myFlat(arr) {
+  return Array.prototype.concat.apply([], arr);
+}
+
+function processArguments(argumentList) {
+  const processed = argumentList.map(toWireValue);
+  return [processed.map(v => v[0]), myFlat(processed.map(v => v[1]))];
+}
+
+const transferCache = new WeakMap();
+
+function transfer(obj, transfers) {
+  transferCache.set(obj, transfers);
+  return obj;
+}
+
+function proxy(obj) {
+  return Object.assign(obj, {
+    [proxyMarker]: true
+  });
+}
+
+function windowEndpoint(w, context = self, targetOrigin = "*") {
+  return {
+    postMessage: (msg, transferables) => w.postMessage(msg, targetOrigin, transferables),
+    addEventListener: context.addEventListener.bind(context),
+    removeEventListener: context.removeEventListener.bind(context)
+  };
+}
+
+function toWireValue(value) {
+  for (const [name, handler] of transferHandlers) {
+    if (handler.canHandle(value)) {
+      const [serializedValue, transferables] = handler.serialize(value);
+      return [{
+        type: 3
+        /* HANDLER */
+        ,
+        name,
+        value: serializedValue
+      }, transferables];
+    }
+  }
+
+  return [{
+    type: 0
+    /* RAW */
+    ,
+    value
+  }, transferCache.get(value) || []];
+}
+
+function fromWireValue(value) {
+  switch (value.type) {
+    case 3
+    /* HANDLER */
+    :
+      return transferHandlers.get(value.name).deserialize(value.value);
+
+    case 0
+    /* RAW */
+    :
+      return value.value;
+  }
+}
+
+function requestResponseMessage(ep, msg, transfers) {
+  return new Promise(resolve => {
+    const id = generateUUID();
+    ep.addEventListener("message", function l(ev) {
+      if (!ev.data || !ev.data.id || ev.data.id !== id) {
+        return;
+      }
+
+      ep.removeEventListener("message", l);
+      resolve(ev.data);
+    });
+
+    if (ep.start) {
+      ep.start();
+    }
+
+    ep.postMessage(Object.assign({
+      id
+    }, msg), transfers);
+  });
+}
+
+function generateUUID() {
+  return new Array(4).fill(0).map(() => Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString(16)).join("-");
+}
+},{}],"index.ts":[function(require,module,exports) {
 "use strict";
 
 var __importDefault = this && this.__importDefault || function (mod) {
@@ -21651,11 +21848,17 @@ var __importDefault = this && this.__importDefault || function (mod) {
   };
 };
 
+var __importStar = this && this.__importStar || function (mod) {
+  if (mod && mod.__esModule) return mod;
+  var result = {};
+  if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+  result["default"] = mod;
+  return result;
+};
+
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-
-var dynamicWavelet_1 = require("./dynamicWavelet");
 
 var rxjs_1 = require("rxjs");
 
@@ -21667,7 +21870,11 @@ var Meter_svelte_1 = __importDefault(require("./Meter.svelte"));
 
 var stores_1 = require("./stores");
 
+var Comlink = __importStar(require("comlink"));
+
 var AudioContext = window.AudioContext || window.webkitAudioContext;
+var worker = new Worker("/dynamicWavelet.a7547492.js");
+var obj = Comlink.wrap(worker);
 var FRAME = 1000 / 60;
 var meter = new Meter_svelte_1.default({
   target: document.getElementById("meter")
@@ -21687,10 +21894,10 @@ function handleSuccess(stream) {
   };
 }
 
-var freq$ = audioBuffer$.pipe(operators_1.map(function (buff) {
-  return dynamicWavelet_1.detectDynamicWavelet(buff);
-}), operators_1.map(function (x) {
-  return x == null ? 0 : x;
+var freq$ = audioBuffer$.pipe(operators_1.mergeMap(function (buff) {
+  return rxjs_1.from(obj.detectDynamicWavelet(buff)).pipe(operators_1.map(function (x) {
+    return x == null ? 0 : x;
+  }));
 }), operators_1.throttleTime(0, rxjs_1.animationFrameScheduler));
 var pitch$ = freq$.pipe(operators_1.map(freqsToPitch_1.findClosestPitch));
 var lastHundredFreq$ = freq$.pipe(operators_1.startWith.apply(void 0, Array(100).fill(0)), operators_1.bufferCount(100, 1));
@@ -21707,7 +21914,7 @@ navigator.mediaDevices.getUserMedia({
   return alert("Whoops! " + err.message);
 });
 exports.default = meter;
-},{"./dynamicWavelet":"dynamicWavelet.ts","rxjs":"../node_modules/rxjs/_esm5/index.js","rxjs/operators":"../node_modules/rxjs/_esm5/operators/index.js","./freqsToPitch":"freqsToPitch.ts","./Meter.svelte":"Meter.svelte","./stores":"stores.js"}],"../node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"rxjs":"../node_modules/rxjs/_esm5/index.js","rxjs/operators":"../node_modules/rxjs/_esm5/operators/index.js","./freqsToPitch":"freqsToPitch.ts","./Meter.svelte":"Meter.svelte","./stores":"stores.js","comlink":"../node_modules/comlink/dist/esm/comlink.mjs","./dynamicWavelet.ts":[["dynamicWavelet.a7547492.js","dynamicWavelet.ts"],"dynamicWavelet.a7547492.js.map","dynamicWavelet.ts"]}],"../node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -21735,7 +21942,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "53471" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "57443" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
