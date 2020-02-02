@@ -7,6 +7,7 @@ import {
   bufferCount,
   startWith,
   mergeMap,
+  auditTime,
 } from "rxjs/operators";
 import { findClosestPitch } from "./freqsToPitch";
 import Meter from "./Meter.svelte";
@@ -54,11 +55,9 @@ const lastHundredFreq$ = freq$.pipe(
   bufferCount(100, 1)
 );
 
-audioBuffer$.pipe(first()).subscribe(console.log);
-
-freq$.subscribe(freq.set);
+freq$.pipe(auditTime(300)).subscribe(freq.set);
 pitch$
-  .pipe(throttleTime(300))
+  .pipe(auditTime(300))
   .subscribe(value => (pitchDisplay.textContent = value));
 lastHundredFreq$.subscribe(lastHundredFreqs.set);
 

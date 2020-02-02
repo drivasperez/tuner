@@ -48,7 +48,7 @@
 <style>
   svg {
     width: 100%;
-    max-height: 300px;
+    height: 40vh;
   }
   .pip {
     stroke: rgb(0, 0, 0);
