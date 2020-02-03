@@ -10,6 +10,7 @@ import {
   auditTime,
 } from "rxjs/operators";
 import { findClosestPitch } from "./freqsToPitch";
+// @ts-ignore
 import Meter from "./Meter.svelte";
 import { freq, lastHundredFreqs } from "./stores";
 import * as Comlink from "comlink";
@@ -49,13 +50,14 @@ function handleSuccess(stream: MediaStream) {
 }
 
 const freq$ = audioBuffer$.pipe(
-  mergeMap(buff =>
-    from(obj.detectDynamicWavelet(buff)).pipe(map(x => (x == null ? 0 : x)))
-  ),
+  mergeMap(buff => from(obj.detectDynamicWavelet(buff)).pipe()),
   throttleTime(0, animationFrameScheduler)
 );
 
-const pitch$ = freq$.pipe(map(findClosestPitch));
+const pitch$ = freq$.pipe(
+  map(x => (x == null ? 0 : x)),
+  map(findClosestPitch)
+);
 
 const lastHundredFreq$ = freq$.pipe(
   startWith(...Array(100).fill(0)),

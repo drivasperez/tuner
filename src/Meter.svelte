@@ -10,8 +10,21 @@
   }
 
   $: percent = ($freq / 3951) * 100;
-
-  $: graphpoints = $lastHundredFreqs.map((x, i) => [i, 100 - (x / 3951) * 100]);
+  let graphpoints;
+  $: {
+    let newPoints = [];
+    let i = 0;
+    for (const y of $lastHundredFreqs) {
+      if (y !== null) {
+        newPoints.push([i, 100 - (y / 3951) * 100]);
+      }
+      i++;
+    }
+    graphpoints = newPoints;
+  }
+  // $: graphpoints = $lastHundredFreqs
+  //   .filter(x => x != null)
+  //   .map((x, i) => [i, 100 - (x / 3951) * 100]);
 
   let svgline;
   $: {
@@ -21,7 +34,6 @@
   const pips = Array(21)
     .fill(0)
     .map((_x, i) => (i % 4 === 0 ? 30 : 5));
-  console.log("Pips:", pips);
 </script>
 
 <svg id="graph" viewBox="0 0 100 100" preserveAspectRatio="none">
