@@ -9,7 +9,8 @@
   "license": "MIT",
   "scripts": {
     "start": "parcel src/index.html",
-    "build": "parcel build src/index.html && npx workbox generateSW workbox-config.js"
+    "build": "parcel build src/index.html && npm run build:sw",
+    "build:sw": "npx workbox generateSW workbox-config.js"
   },
   "dependencies": {
     "comlink": "4.2.0",
@@ -26,6 +27,7 @@
   "devDependencies": {
     "@babel/polyfill": "7.8.3",
     "parcel-bundler": "1.12.4",
-    "parcel-plugin-svelte": "4.0.5"
+    "parcel-plugin-svelte": "4.0.5",
+    "workbox-cli": "^5.0.0"
   }
 }
