@@ -10,7 +10,7 @@ import {
 import { findClosestPitch } from "./freqsToPitch";
 // @ts-ignore (typescript doesn't support svelte imports)
 import Meter from "./Meter.svelte";
-import { freq, lastHundredFreqs } from "./stores";
+import { lastHundredFreqs, freq } from "./stores";
 import * as Comlink from "comlink";
 
 // Safari doesn't suppport standard AudioContext.
