@@ -5454,7 +5454,7 @@ workbox-strategies@5.0.0:
     workbox-core "^5.0.0"
     workbox-routing "^5.0.0"
 
-workbox@0.0.0:
+workbox@^0.0.0:
   version "0.0.0"
   resolved "https://registry.yarnpkg.com/workbox/-/workbox-0.0.0.tgz#26f5e7834abf83178c7c454edc91bc61fef8d6c3"
   integrity sha1-JvXng0q/gxeMfEVO3JG8Yf741sM=

@@ -17,7 +17,7 @@
     "rxjs": "6.5.4",
     "svelte": "3.18.1",
     "typescript": "3.7.5",
-    "workbox": "0.0.0",
+    "workbox": "^0.0.0",
     "workbox-cacheable-response": "5.0.0",
     "workbox-expiration": "5.0.0",
     "workbox-routing": "5.0.0",
