@@ -1,15 +1,11 @@
 <script>
   import { line, curveCatmullRom } from "d3-shape";
   import { freq, lastHundredFreqs } from "./stores";
-  console.log(curveCatmullRom);
 
   const fn = line().curve(curveCatmullRom);
 
-  function jump() {
-    freq.set($freq + 400);
-  }
-
   $: percent = ($freq / 3951) * 100;
+
   let graphpoints;
   $: {
     let newPoints = [];
@@ -22,9 +18,6 @@
     }
     graphpoints = newPoints;
   }
-  // $: graphpoints = $lastHundredFreqs
-  //   .filter(x => x != null)
-  //   .map((x, i) => [i, 100 - (x / 3951) * 100]);
 
   let svgline;
   $: {
